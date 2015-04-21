@@ -177,3 +177,67 @@ By default it connects to the same port as the gnatsd image.
 (provide with-nats-io)
 
 #+END_SRC
+*** Appendix: About the NATS protocol
+
+Some notes on the NATS protocol below.
+All messages should end with a carriage and new line =\r\n=.
+
+***** =INFO=
+
+As soon as the connection is established, the server will emit an info
+message with more details itself:
+
+: INFO {"server_id":"5ddec1db39fa9afe91a7f769011d3c2a","version":"0.5.8","host":"0.0.0.0","port":4222,"auth_required":false,"ssl_required":false,"max_payload":1048576} 
+
+***** =PING= and =PONG=
+
+After a certain time, the NATS server will begin to emit PING messages
+that the client needs to =PONG= back, otherwise it will drop the connection.
+
+***** =CONNECT=
+
+When the sending a =CONNECT= op:
+
+: CONNECT {"verbose":false,"pedantic":false}
+
+...the server should respond with:
+
+: +OK
+
+***** =SUB=
+
+ Describe the interest and the subscription ID.
+
+ : SUB hello.world  2
+ : SUB holaaaaaaaaaa  2
+
+***** =UNSUB=
+
+Used to report as unsubscribe on the subscription id:1 after 1.
+
+: SUB foo 1
+: UNSUB 1 1
+
+This functionality is useful to be able to implement the request
+pattern of subscribing to a topic, but unsubscribing after we got as
+many as we wanted already.
+
+***** =PUB=
+
+Describe the interest, optional inbox in case it is a request and the
+number of bytes that the message consists of.
+
+: PUB hello.world _INBOX.1aacf856345d5d688f4499d95f 11
+: all is good
+
+In case there is no inbox, there is an extra space in between:
+
+: PUB hello.world  64
+: there you goooooooooooooooooooooooooooooooooooooooooooooooooooo
+
+***** =MSG=
+
+ The server will process the pub message and propagated as a ~MSG~ payload.
+
+ : MSG hello.world 2 64
+ : there you gooooooooooooooooooooooooooooooooooooooooooooooooooooo
