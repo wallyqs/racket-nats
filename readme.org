@@ -3,12 +3,10 @@
 #+startup: showeverything
 #+todo: todo:t
 
-(a very simple one)
-
 *status*: alpha, still a work in progress 
 
-This is a very simple implementation of a NATS client for Racket,
-implementation would change a lot, mostly an exercise to learn Racket.
+This is a very simple implementation of a NATS client for Racket
+at the moment, implementation would change a lot.
 
 *** Usage
 

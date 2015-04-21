@@ -27,6 +27,8 @@
 
 (require json)
 
+(define version "0.0.1")
+
 ;; Protocol
 (define CONNECT "CONNECT {\"verbose\":false,\"pedantic\":false}\r\n")
 (define PING    "PING \r\n")              ;; Received periodically by the server
