@@ -35,7 +35,7 @@ Currently basic subscriptions and publishing of messages work as follows:
 - [ ] Logging facilities
 - [ ] Add testing framework
 - [ ] Cluster mode
-# - [ ] Look into continuations
+- [X] Authentication
 
 *** License
 
