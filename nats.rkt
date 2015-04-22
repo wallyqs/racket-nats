@@ -27,17 +27,16 @@
 
 (require json)
 
-(define version "0.0.1")
+(define version "0.0.2")
 
 ;; Protocol
-(define CONNECT "CONNECT {\"verbose\":false,\"pedantic\":false}\r\n")
+(define CONNECT "CONNECT ~a\r\n")        ;; Example: {\"verbose\":false,\"pedantic\":false}
 (define PING    "PING \r\n")              ;; Received periodically by the server
 (define PONG    "PONG \r\n")              ;;
 (define SUB     "SUB ~a ~a\r\n")          ;; SUB some.interest ssid
 (define UNSUB   "UNSUB ~a ~a\r\n")        ;; UNSUB ssid max
 (define PUB     "PUB ~a ~a ~a\r\n~a\r\n") ;; PUB some.interest optional-inbox message-bytes\r\n
                                           ;; content\r\n
-
 ;; Track number of subscriptions
 (define ssid 1)
 
@@ -45,22 +44,6 @@
 (define (send-command cmd nats-out)
   (fprintf nats-out cmd)
   (flush-output nats-out))
-
-
-(define (process-nats-protocol io callback)
-  (let* ([nats-in  (car io)]
-         [nats-out (cdr io)]
-         [payload  (read-line nats-in)]
-         [maybe-op (read (open-input-string payload))])
-
-    (match maybe-op
-      ['INFO   (process-info payload)]
-      ['PING   (send-command PONG nats-out)]
-      ['PONG   (send-command PING nats-out)]
-      ['MSG    (process-msg   payload callback nats-in)]
-      ['-ERR   'skip]
-      ['+OK    'skip]
-      [_       'skip])))
 
 
 (define (process-info payload)
@@ -71,7 +54,9 @@
 
     (printf "Server Version: ~a ~nServer Id: ~a~n"
             (hash-ref server-info 'version)
-            (hash-ref server-info 'server_id))))
+            (hash-ref server-info 'server_id))
+
+    server-info))
 
 (define (process-msg payload sub-callback nats-in)
   (let* ([lst (string-split payload " ")]
@@ -85,28 +70,71 @@
     ;; e.g. (nats-sub "hello.world" (lambda (msg) ... ))
     (sub-callback (list subject csid content))))
 
+(define (build-connection-string user password verbose pedantic)
+  (let* ([base-string
+          (format "{\"verbose\":~a,\"pedantic\":~a" verbose pedantic)]
+         [full-string
+          (if (and (not (null? user)) (not (null? password)))
+              (string-append base-string (format ",\"user\":~s,\"pass\":~s}" user password))
+              (string-append base-string "}")
+              )])
+    full-string))
+
 (define (nats-connect
          #:host [host "127.0.0.1"]
-         #:port [port 4222])
+         #:port [port 4222]
+         #:user [user null]
+         #:password [password null]
+         #:verbose  [verbose "false"]  ;; TODO: Boolean
+         #:pedantic [pedantic "false"])
 
+  ;; Set handler for graceful failure
   (define-values (nats-in nats-out) (tcp-connect host port))
-  (send-command CONNECT nats-out)
+
+  ;; Process the INFO message
+  (define payload (read-line nats-in))
+  (define server-info (process-info payload))
+
+  ;; Respond with CONNECT
+  (define connect-msg
+    (format CONNECT
+            (build-connection-string user password verbose pedantic)))
+  (send-command connect-msg nats-out)
 
   (printf "Connected to NATS server at ~a:~a~n" host port)
   (cons nats-in nats-out))
 
-
-(define (with-nats-io nats-io callback)
+(define (with-nats-io nats-io
+          #:raw       [raw-cb null]
+          #:onmessage [onmessage-cb null])
   (define main-cust (make-custodian))
   (parameterize ([current-custodian main-cust])
     (define (loop)
-      (process-nats-protocol nats-io callback)
+
+      (let* ([nats-in  (car nats-io)]
+             [nats-out (cdr nats-io)]
+             [payload  (read-line nats-in)]
+             [maybe-op (read (open-input-string payload))])
+
+        ;; Make it possible to inspect the raw protocol too
+        (if (not (null? raw-cb))
+            (raw-cb payload)
+            'continue)
+
+        (match maybe-op
+          ['INFO   (process-info payload)] ;; should have been handled during connect
+          ['PING   (send-command PONG nats-out)]
+          ['PONG   (send-command PING nats-out)]
+          ['MSG    (process-msg  payload onmessage-cb nats-in)]
+          ['-ERR   'skip]
+          ['+OK    'skip]
+          [_       'skip]))
+
       (loop))
     (thread-wait (thread loop))
     (lambda ()
       (printf "Shutting down...")
       (custodian-shutdown-all main-cust))))
-
 
 (define (nats-sub subject callback io)
   (define nats-in  (car io))
@@ -117,7 +145,7 @@
   (send-command (format SUB subject (number->string ssid)) nats-out)
 
   (with-nats-io io
-    (lambda (msg) ;; a list
+  #:onmessage (lambda (msg) ;; FIXME: a list, a struct + match would be better
       (let* ([received-subject (list-ref msg 0)]
              [csid    (list-ref msg 1)]
              [content (list-ref msg 2)])

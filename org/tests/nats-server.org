@@ -1,0 +1,10 @@
+#+TITLE: NATS Server
+
+*** Nats Server
+
+Just use the ruby nats server for local testing:
+
+#+name: nats-server
+#+BEGIN_SRC sh
+nats-server --debug -V -c tmp/nats.yml
+#+END_SRC

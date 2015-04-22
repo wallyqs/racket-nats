@@ -1,0 +1,56 @@
+# -*- mode: org; mode: auto-fill -*-
+#+TITLE: Pub Sub test
+#+startup: showeverything
+#+include: "org/nats.org"
+
+** DONE Pub Sub Test
+
+*** Run a nats server
+
+#+include: "org/tests/nats-server.org"
+
+*** Nats config
+
+For testing purposes, we will modify the PING interval
+from the server to do it once per second.
+
+#+BEGIN_SRC yaml :tangle tmp/nats.yml
+ping:
+ interval: 1
+ max: 30
+#+END_SRC
+
+*** Racket test
+
+#+BEGIN_SRC racket :tangle examples/pub-sub.rkt :mkdirp true
+#lang racket
+
+(require "../nats.rkt")
+
+(define worker-response "{\"result\":~a}~n")
+(define nats-io (nats-connect #:host "127.0.0.1" #:port 4222))
+
+(printf "Subscribing to 'workers.double ~n")
+(nats-sub "workers.double"
+          (lambda (msg)
+            (define result (* 2 (string->number (bytes->string/utf-8 msg))))
+            (nats-pub "workers.results" (format worker-response result) nats-io)) nats-io)
+#+END_SRC
+
+Run it:
+
+#+name: pub-sub-test
+#+BEGIN_SRC sh :sleep 1
+racket examples/pub-sub.rkt
+#+END_SRC
+
+Verify the worker can compute duplicating numbers:
+
+#+name: request
+#+BEGIN_SRC sh :sleep 3
+nats-pub workers.double  -s nats://localhost:4222 1234
+#+END_SRC
+
+#+BEGIN_SRC sh :sleep 1
+nats-pub workers.results -s nats://localhost:4222 1234
+#+END_SRC

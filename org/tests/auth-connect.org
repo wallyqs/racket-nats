@@ -1,0 +1,51 @@
+# -*- mode: org; mode: auto-fill -*-
+#+TITLE: Authorization test
+#+startup: showeverything
+#+include: "org/nats.org"
+
+** DONE Auth test
+
+*** NATS server
+
+#+include: "org/tests/nats-server.org"
+
+*** NATS server config
+
+Given a NATS server with configuration which includes authorization:
+
+#+BEGIN_SRC conf :tangle tmp/nats.yml
+authorization:
+  user: foobar
+  password: hogehoge
+
+# TODO:
+#  token: deadbeef
+#  timeout: 1
+
+ping:
+  interval: 1
+#+END_SRC
+
+*** Racket test
+
+#+BEGIN_SRC racket :tangle examples/auth.rkt :results output
+#lang racket
+
+(require "../nats.rkt")
+
+(define io 
+  (nats-connect #:host "127.0.0.1" 
+                #:port 4222
+                #:user "foobar"
+                #:password "hogehoge"))
+
+(with-nats-io io
+  #:raw (lambda (payload)
+          (nats-pub "echo" payload io)
+          (printf "From the wire: ~a ~n" payload)))
+#+END_SRC
+
+#+name: auth-connect-test
+#+BEGIN_SRC sh
+racket examples/auth.rkt
+#+END_SRC
