@@ -117,9 +117,8 @@
              [maybe-op (read (open-input-string payload))])
 
         ;; Make it possible to inspect the raw protocol too
-        (if (not (null? raw-cb))
-            (raw-cb payload)
-            'continue)
+        (when (not (null? raw-cb))
+            (raw-cb payload))
 
         (match maybe-op
           ['INFO   (process-info payload)] ;; should have been handled during connect
@@ -150,9 +149,8 @@
              [csid    (list-ref msg 1)]
              [content (list-ref msg 2)])
 
-        (if (equal? received-subject subject)
-            (callback content)
-            'skip)))))
+        (when (equal? received-subject subject)
+            (callback content))))))
 
 
 (define (nats-pub subject content io)
