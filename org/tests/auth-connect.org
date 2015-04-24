@@ -46,6 +46,6 @@ ping:
 #+END_SRC
 
 #+name: auth-connect-test
-#+BEGIN_SRC sh
+#+BEGIN_SRC sh :sleep 2
 racket examples/auth.rkt
 #+END_SRC

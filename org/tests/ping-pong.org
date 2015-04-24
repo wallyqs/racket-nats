@@ -1,0 +1,43 @@
+# -*- mode: org; mode: auto-fill -*-
+#+TITLE:   Ping Pong test
+#+startup: showeverything
+#+include: "org/tests/nats-server.org"
+
+For testing purposes, we will modify the PING interval
+from the server to do it once per second.
+
+#+BEGIN_SRC yaml :tangle tmp/nats.yml :mkdirp true
+ping:
+ interval: 1
+ max: 30
+#+END_SRC
+
+We will collect then 10 PINGs from the server
+and respond with PONG, meaning that we can respond
+to the server:
+
+#+BEGIN_SRC racket :tangle examples/ping-pong.rkt
+#lang racket
+
+(require "../nats.rkt")
+
+(define io (nats-connect))
+
+(with-nats-io io
+  #:raw (lambda (payload)
+          (printf "From the wire: ~s ~n" payload)))
+#+END_SRC
+
+**** Run
+
+#+name: ping-pong-test
+#+BEGIN_SRC sh :sleep 2
+racket examples/ping-pong.rkt
+#+END_SRC
+
+***** COMMENT Inspect
+
+#+name: tcpdump
+#+BEGIN_SRC sh
+sudo tcpdump -A -i lo0 port 4222
+#+END_SRC

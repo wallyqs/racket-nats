@@ -3,6 +3,7 @@
 #+startup: showeverything
 #+include: "readme.org"
 
+** Source
 *** Imports and Definitions
 
 Import the json library and formatted strings which can be used to
@@ -177,9 +178,8 @@ By default it connects to the same port as the gnatsd image.
              [maybe-op (read (open-input-string payload))])
 
         ;; Make it possible to inspect the raw protocol too
-        (if (not (null? raw-cb))
-            (raw-cb payload)
-            'continue)
+        (when (not (null? raw-cb))
+            (raw-cb payload))
 
         (match maybe-op
           ['INFO   (process-info payload)] ;; should have been handled during connect
@@ -219,9 +219,8 @@ By default it connects to the same port as the gnatsd image.
              [csid    (list-ref msg 1)]
              [content (list-ref msg 2)])
 
-        (if (equal? received-subject subject)
-            (callback content)
-            'skip)))))
+        (when (equal? received-subject subject)
+            (callback content))))))
 
 #+END_SRC
 
@@ -247,7 +246,8 @@ By default it connects to the same port as the gnatsd image.
 (provide with-nats-io)
 
 #+END_SRC
-*** Appendix: About the NATS protocol
+
+** Appendix: About the NATS protocol
 
 Some notes on the NATS protocol below.
 All messages should end with a carriage and new line =\r\n=.
@@ -278,7 +278,8 @@ meaning that the connection was established.
 
 In case the server responded with =auth_required: true=, then it is
 needed to send the =user= and =pass= as well in order to connect.
-e.g.
+
+Example:
 
 : CONNECT {"verbose":false,"pedantic":false,"user":"hoge","pass":"fuga"}
 
