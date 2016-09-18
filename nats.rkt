@@ -70,13 +70,13 @@
     ;; e.g. (nats-sub "hello.world" (lambda (msg) ... ))
     (sub-callback (list subject csid content))))
 
-(define (build-connection-string user password verbose pedantic)
+(define (build-connection-string user password verbose pedantic version)
   (let* ([base-string
           (format "{\"verbose\":~a,\"pedantic\":~a" verbose pedantic)]
          [full-string
           (if (and (not (null? user)) (not (null? password)))
-              (string-append base-string (format ",\"user\":~s,\"pass\":~s}" user password))
-              (string-append base-string "}")
+              (string-append base-string (format ",\"user\":~s,\"pass\":~s,\"lang\":\"racket\",\"version\":~s}" user password version))
+              (string-append base-string (format ",\"lang\":\"racket\",\"version\":~s}" version))
               )])
     full-string))
 
@@ -84,6 +84,8 @@
          #:host [host "127.0.0.1"]
          #:port [port 4222]
          #:user [user null]
+         #:lang [lang "racket"]
+         #:version [version "0.0.2"]
          #:password [password null]
          #:verbose  [verbose "false"]  ;; TODO: Boolean
          #:pedantic [pedantic "false"])
@@ -98,7 +100,7 @@
   ;; Respond with CONNECT
   (define connect-msg
     (format CONNECT
-            (build-connection-string user password verbose pedantic)))
+            (build-connection-string user password verbose pedantic "0.0.2")))
   (send-command connect-msg nats-out)
 
   (printf "Connected to NATS server at ~a:~a~n" host port)
